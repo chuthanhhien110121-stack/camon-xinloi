@@ -68,11 +68,16 @@
             const [activeTab, setActiveTab] = useState('thank');
             const [currentSuggestion, setCurrentSuggestion] = useState('');
             const [showAdmin, setShowAdmin] = useState(false);
+            const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+            const [password, setPassword] = useState('');
+            const [showPasswordDialog, setShowPasswordDialog] = useState(false);
             const [newSuggestion, setNewSuggestion] = useState('');
             const [loading, setLoading] = useState(true);
             const [saving, setSaving] = useState(false);
             const [error, setError] = useState('');
             const [suggestions, setSuggestions] = useState({ thank: [], sorry: [] });
+            
+            const ADMIN_PASSWORD = 'limecuoinam';
 
             useEffect(() => {
                 loadSuggestions();
@@ -88,7 +93,6 @@
                     if (doc.exists) {
                         setSuggestions(doc.data());
                     } else {
-                        // Tạo document mới nếu chưa có
                         await db.collection('suggestions').doc('data').set({
                             thank: [],
                             sorry: []
@@ -130,7 +134,6 @@
 
             const addSuggestion = async () => {
                 if (newSuggestion.trim()) {
-                    // Tách các dòng và lọc bỏ dòng trống
                     const lines = newSuggestion.split('\n').map(line => line.trim()).filter(line => line);
                     const updatedList = [...suggestions[activeTab], ...lines];
                     const updatedSuggestions = { ...suggestions, [activeTab]: updatedList };
@@ -145,6 +148,34 @@
                 const updatedSuggestions = { ...suggestions, [activeTab]: updatedList };
                 setSuggestions(updatedSuggestions);
                 await saveSuggestions(updatedSuggestions);
+            };
+
+            const handleAdminClick = () => {
+                if (isAdminAuthenticated) {
+                    setShowAdmin(!showAdmin);
+                } else {
+                    setShowPasswordDialog(true);
+                }
+            };
+
+            const handlePasswordSubmit = (e) => {
+                e.preventDefault();
+                if (password === ADMIN_PASSWORD) {
+                    setIsAdminAuthenticated(true);
+                    setShowAdmin(true);
+                    setShowPasswordDialog(false);
+                    setPassword('');
+                    setError('');
+                } else {
+                    setError('Mật khẩu không đúng!');
+                    setPassword('');
+                }
+            };
+
+            const handleLogout = () => {
+                setIsAdminAuthenticated(false);
+                setShowAdmin(false);
+                setPassword('');
             };
 
             if (loading) {
@@ -167,7 +198,7 @@
                                 💝 Gợi Ý Chân Thành
                             </h1>
                             <button
-                                onClick={() => setShowAdmin(!showAdmin)}
+                                onClick={handleAdminClick}
                                 className="p-3 bg-white rounded-lg shadow-md hover:shadow-lg transition-all"
                             >
                                 <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,6 +207,51 @@
                                 </svg>
                             </button>
                         </div>
+
+                        {/* Password Dialog */}
+                        {showPasswordDialog && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-fade-in">
+                                    <h2 className="text-2xl font-bold mb-4 text-gray-800">
+                                        🔐 Đăng Nhập Admin
+                                    </h2>
+                                    <form onSubmit={handlePasswordSubmit}>
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Mật khẩu
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="Nhập mật khẩu admin"
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="submit"
+                                                className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all font-semibold"
+                                            >
+                                                Đăng Nhập
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowPasswordDialog(false);
+                                                    setPassword('');
+                                                    setError('');
+                                                }}
+                                                className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all font-semibold"
+                                            >
+                                                Hủy
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Error Message */}
                         {error && (
@@ -277,9 +353,20 @@
                         ) : (
                             // Admin View
                             <div className="bg-white rounded-xl shadow-xl p-6 md:p-8">
-                                <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                                    ⚙️ Quản Lý Gợi Ý
-                                </h2>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">
+                                        ⚙️ Quản Lý Gợi Ý
+                                    </h2>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all text-sm font-semibold flex items-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Đăng Xuất
+                                    </button>
+                                </div>
 
                                 {/* Admin Tabs */}
                                 <div className="flex gap-4 mb-6">
