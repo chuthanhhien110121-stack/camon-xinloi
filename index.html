@@ -8,6 +8,11 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         @keyframes fade-in {
             from {
@@ -42,9 +47,22 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Cấu hình GitHub Gist
-        const GIST_ID = '233d30f7711f4d4fda86f7ecbb0a6a84';
-        const GITHUB_TOKEN = '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';
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCRwXwZ9sNFGBmY1Z4U1warH_xByWqC9fY",
+            authDomain: "lime-camon-xinloi.firebaseapp.com",
+            projectId: "lime-camon-xinloi",
+            storageBucket: "lime-camon-xinloi.firebasestorage.app",
+            messagingSenderId: "559164064502",
+            appId: "1:559164064502:web:39902bfd2488bea5e9a2d7",
+            measurementId: "G-HBCL2526ML"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
 
         function App() {
             const [activeTab, setActiveTab] = useState('thank');
@@ -65,20 +83,21 @@
                     setLoading(true);
                     setError('');
                     
-                    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                    const doc = await db.collection('suggestions').doc('data').get();
                     
-                    if (!response.ok) {
-                        throw new Error('Không thể tải dữ liệu. Kiểm tra GIST_ID.');
+                    if (doc.exists) {
+                        setSuggestions(doc.data());
+                    } else {
+                        // Tạo document mới nếu chưa có
+                        await db.collection('suggestions').doc('data').set({
+                            thank: [],
+                            sorry: []
+                        });
+                        setSuggestions({ thank: [], sorry: [] });
                     }
-                    
-                    const data = await response.json();
-                    const content = data.files['suggestions.json'].content;
-                    const loadedData = JSON.parse(content);
-                    
-                    setSuggestions(loadedData);
                 } catch (err) {
                     console.error('Error loading:', err);
-                    setError('Không thể tải dữ liệu. Vui lòng kiểm tra cấu hình GIST_ID.');
+                    setError('Không thể tải dữ liệu. Vui lòng thử lại.');
                 } finally {
                     setLoading(false);
                 }
@@ -89,28 +108,11 @@
                     setSaving(true);
                     setError('');
                     
-                    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            files: {
-                                'suggestions.json': {
-                                    content: JSON.stringify(updatedSuggestions, null, 2)
-                                }
-                            }
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Không thể lưu dữ liệu. Kiểm tra GITHUB_TOKEN.');
-                    }
+                    await db.collection('suggestions').doc('data').set(updatedSuggestions);
                     
                 } catch (err) {
                     console.error('Error saving:', err);
-                    setError('Không thể lưu dữ liệu. Vui lòng kiểm tra cấu hình GITHUB_TOKEN.');
+                    setError('Không thể lưu dữ liệu. Vui lòng thử lại.');
                 } finally {
                     setSaving(false);
                 }
